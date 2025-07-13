@@ -584,6 +584,8 @@ int main(void)
   MX_TIM16_Init();
   /* USER CODE BEGIN 2 */
 
+  __HAL_RCC_TIM16_CLK_SLEEP_ENABLE();
+
   __HAL_TIM_ENABLE_IT(&htim16, TIM_IT_UPDATE);
   //printf("Works!\r\n");
 
@@ -606,6 +608,9 @@ int main(void)
     //MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
+
+	// Reconfigure clock
+	SystemClock_Config();
 
 	if (start_algo)
 	{
@@ -683,6 +688,10 @@ int main(void)
 
 		// Reset start_algo flag
 		start_algo = 0;
+
+	    // Go to sleep
+		__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
+		HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
 	}
   }
 
