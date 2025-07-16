@@ -71,9 +71,9 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-UART_HandleTypeDef hlpuart1;
+LPTIM_HandleTypeDef hlptim1;
 
-TIM_HandleTypeDef htim16;
+UART_HandleTypeDef hlpuart1;
 
 /* USER CODE BEGIN PV */
 
@@ -142,7 +142,7 @@ float32_t res_temp1, res_temp2;
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_LPUART1_UART_Init(void);
-static void MX_TIM16_Init(void);
+static void MX_LPTIM1_Init(void);
 void MX_USB_HOST_Process(void);
 
 /* USER CODE BEGIN PFP */
@@ -180,7 +180,6 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
             memset(USART_RxBuffer_calibration, 0, sizeof(USART_RxBuffer_calibration));
             HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)USART_RxBuffer_signal, RX_BUFFER_SIZE_signal);
 
-            __HAL_TIM_SET_COUNTER(&htim16, 0);
             started = 1;
         }
         else if (started)
@@ -581,23 +580,9 @@ int main(void)
   MX_GPIO_Init();
   MX_LPUART1_UART_Init();
   MX_USB_HOST_Init();
-  MX_TIM16_Init();
+  MX_LPTIM1_Init();
   /* USER CODE BEGIN 2 */
-
-  __HAL_RCC_TIM16_CLK_SLEEP_ENABLE();
-
-  __HAL_TIM_ENABLE_IT(&htim16, TIM_IT_UPDATE);
-  //printf("Works!\r\n");
-
-  // Reset the timer counter to zero
-  //__HAL_TIM_SET_COUNTER(&htim16, 0);
-
-  HAL_TIM_Base_Start_IT(&htim16);
-
-  //HAL_Delay(1000);
-
-  //HAL_TIM_Base_Stop_IT(&htim16);
-
+  HAL_SuspendTick();
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -605,12 +590,9 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-    //MX_USB_HOST_Process();
+    MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
-
-	// Reconfigure clock
-	SystemClock_Config();
 
 	if (start_algo)
 	{
@@ -689,9 +671,10 @@ int main(void)
 		// Reset start_algo flag
 		start_algo = 0;
 
-	    // Go to sleep
-		__HAL_PWR_CLEAR_FLAG(PWR_FLAG_WU);
-		HAL_PWREx_EnterSTOP2Mode(PWR_STOPENTRY_WFI);
+		// Enter STOP2 mode
+		LL_PWR_SetPowerMode(LL_PWR_MODE_STOP2);
+		LL_LPM_EnableDeepSleep();
+		__WFI();
 	}
   }
 
@@ -722,8 +705,10 @@ void SystemClock_Config(void)
   /** Initializes the RCC Oscillators according to the specified parameters
   * in the RCC_OscInitTypeDef structure.
   */
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSE|RCC_OSCILLATORTYPE_MSI;
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_LSI|RCC_OSCILLATORTYPE_LSE
+                              |RCC_OSCILLATORTYPE_MSI;
   RCC_OscInitStruct.LSEState = RCC_LSE_ON;
+  RCC_OscInitStruct.LSIState = RCC_LSI_ON;
   RCC_OscInitStruct.MSIState = RCC_MSI_ON;
   RCC_OscInitStruct.MSICalibrationValue = 0;
   RCC_OscInitStruct.MSIClockRange = RCC_MSIRANGE_6;
@@ -759,6 +744,40 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief LPTIM1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_LPTIM1_Init(void)
+{
+
+  /* USER CODE BEGIN LPTIM1_Init 0 */
+
+  /* USER CODE END LPTIM1_Init 0 */
+
+  /* USER CODE BEGIN LPTIM1_Init 1 */
+
+  /* USER CODE END LPTIM1_Init 1 */
+  hlptim1.Instance = LPTIM1;
+  hlptim1.Init.Clock.Source = LPTIM_CLOCKSOURCE_APBCLOCK_LPOSC;
+  hlptim1.Init.Clock.Prescaler = LPTIM_PRESCALER_DIV1;
+  hlptim1.Init.Trigger.Source = LPTIM_TRIGSOURCE_SOFTWARE;
+  hlptim1.Init.OutputPolarity = LPTIM_OUTPUTPOLARITY_HIGH;
+  hlptim1.Init.UpdateMode = LPTIM_UPDATE_IMMEDIATE;
+  hlptim1.Init.CounterSource = LPTIM_COUNTERSOURCE_INTERNAL;
+  hlptim1.Init.Input1Source = LPTIM_INPUT1SOURCE_GPIO;
+  hlptim1.Init.Input2Source = LPTIM_INPUT2SOURCE_GPIO;
+  if (HAL_LPTIM_Init(&hlptim1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN LPTIM1_Init 2 */
+  HAL_LPTIM_Counter_Start_IT(&hlptim1, 1279);
+  /* USER CODE END LPTIM1_Init 2 */
+
+}
+
+/**
   * @brief LPUART1 Initialization Function
   * @param None
   * @retval None
@@ -789,38 +808,6 @@ static void MX_LPUART1_UART_Init(void)
   /* USER CODE BEGIN LPUART1_Init 2 */
   HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)USART_RxBuffer_calibration, RX_BUFFER_SIZE_calibration);
   /* USER CODE END LPUART1_Init 2 */
-
-}
-
-/**
-  * @brief TIM16 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM16_Init(void)
-{
-
-  /* USER CODE BEGIN TIM16_Init 0 */
-
-  /* USER CODE END TIM16_Init 0 */
-
-  /* USER CODE BEGIN TIM16_Init 1 */
-
-  /* USER CODE END TIM16_Init 1 */
-  htim16.Instance = TIM16;
-  htim16.Init.Prescaler = 7999;
-  htim16.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim16.Init.Period = 399;
-  htim16.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim16.Init.RepetitionCounter = 0;
-  htim16.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim16) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM16_Init 2 */
-
-  /* USER CODE END TIM16_Init 2 */
 
 }
 
@@ -880,12 +867,14 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+
+void HAL_LPTIM_AutoReloadMatchCallback(LPTIM_HandleTypeDef *hlptim)
 {
-  if (htim == &htim16 && started)
-  {
-	printf("m\r\n");
-  }
+    if (hlptim->Instance == LPTIM1 && started)
+    {
+    	SystemClock_Config(); // Reset Clock after wake-up
+    	printf("m\r\n");
+    }
 }
 /* USER CODE END 4 */
 

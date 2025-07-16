@@ -31,6 +31,14 @@ extern "C" {
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "stm32l4xx_ll_bus.h"
+#include "stm32l4xx_ll_rcc.h"
+#include "stm32l4xx_ll_system.h"
+#include "stm32l4xx_ll_utils.h"
+#include "stm32l4xx_ll_gpio.h"
+#include "stm32l4xx_ll_lptim.h"
+#include "stm32l4xx_ll_pwr.h"
+#include "stm32l4xx_ll_cortex.h"
 
 /* USER CODE END Includes */
 
