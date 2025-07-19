@@ -19,11 +19,11 @@
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usb_host.h"
+
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include <math.h>
 #include "arm_math.h"
-#include "US_real_signal.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -86,10 +86,11 @@ _PUTCHAR_PROTOTYPE_ {
 volatile uint8_t USART_RxBuffer_signal[256];
 volatile uint8_t USART_RxBuffer_calibration[10];
 //volatile uint8_t data = 0; // used for testing
+volatile uint8_t started = 0;
 volatile int16_t input[LENGTH] = {0};
 volatile uint8_t start_algo = 0;
-volatile float32_t SBP = 110;
-volatile float32_t DBP = 80;
+volatile float32_t SBP = 0;
+volatile float32_t DBP = 0;
 volatile uint16_t rec_index = 0;
 volatile uint8_t walls_found = 0;
 volatile uint8_t calibrated = 0;
@@ -150,6 +151,73 @@ void MX_USB_HOST_Process(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+{
+    if (huart == &hlpuart1)
+    {
+        // Start command has arrived
+        if (USART_RxBuffer_calibration[0] == 's')
+        {
+            start_algo = 0;
+            rec_index = 0;
+            walls_found = 0;
+            calibrated = 0;
+            valid = 1;
+            buff = 0;
+            eval_idx = 0;
+
+            // Tokenize string using strtok
+            uint8_t *token;
+            token = strtok((char *)USART_RxBuffer_calibration, ",");
+            // Read calibration values of SBP and DBP
+            token = strtok(NULL, ",");
+            SBP = (float32_t)atoi((char *)token);
+            token = strtok(NULL, ",");
+            DBP = (float32_t)atoi((char *)token);
+
+            // Clear the buffer and prepare to receive the next message
+            memset(USART_RxBuffer_calibration, 0, sizeof(USART_RxBuffer_calibration));
+            HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)USART_RxBuffer_signal, RX_BUFFER_SIZE_signal);
+
+            started = 1;
+        }
+        else if (started)
+        {
+            // Receiving and handling end message
+            if (USART_RxBuffer_signal[0] == 'e') // end
+            {
+                started = 0;
+                HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)USART_RxBuffer_calibration, RX_BUFFER_SIZE_calibration);
+                return;
+            }
+
+            // Receiving and handling data input
+            uint8_t *token;
+            uint16_t index = 0;
+            token = strtok((char *)USART_RxBuffer_signal, ",");
+            while (index < LENGTH)
+            {
+                // Convert token to integer
+                input[index] = atoi((char *)token);
+                index++;
+                token = strtok(NULL, ",");
+            }
+            start_algo = 1;
+
+            rec_index++;
+
+            // Handling the end of the recording
+            if (rec_index >= RECORDING_LENGTH)
+            {
+                started = 0;
+                HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)USART_RxBuffer_calibration, RX_BUFFER_SIZE_calibration);
+            }
+            else
+                HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)USART_RxBuffer_signal, RX_BUFFER_SIZE_signal);
+        }
+    }
+}
 
 // Interpolating the recorded signal and keeping the relevant parts
 void zero_stuffing(const q15_t* inputArray, q15_t* outputArray, size_t upsamplingRate)
@@ -510,19 +578,11 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  //MX_USB_HOST_Init();
   MX_LPUART1_UART_Init();
+  MX_USB_HOST_Init();
   MX_LPTIM1_Init();
   /* USER CODE BEGIN 2 */
   HAL_SuspendTick();
-  start_algo = 0;
-  rec_index = 0;
-  walls_found = 0;
-  calibrated = 0;
-  valid = 1;
-  buff = 0;
-  eval_idx = 0;
-  uint16_t index = 0;
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -530,25 +590,12 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+    MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
-	//MX_USB_HOST_Process();
 
 	if (start_algo)
 	{
-		// Get US A-mode scan
-		index = 0;
-		while (index < LENGTH)
-		{
-			input[index] = ultrasound_data[rec_index][index];
-			index++;
-		}
-		rec_index++;
-		if (rec_index >= RECORDING_LENGTH)
-		{
-			return;
-		}
-
 		// Convert raw input to proper format
 		raw2proper(input, interest[(rec_index - 1) % NUM_REC]); // This is the preprocessing part
 
@@ -619,6 +666,7 @@ int main(void)
 		{
 			printf("%d\r\n", 0); // Print zero if conditions are not met
 		}
+
 
 		// Reset start_algo flag
 		start_algo = 0;
@@ -749,7 +797,7 @@ static void MX_LPUART1_UART_Init(void)
   hlpuart1.Init.WordLength = UART_WORDLENGTH_8B;
   hlpuart1.Init.StopBits = UART_STOPBITS_1;
   hlpuart1.Init.Parity = UART_PARITY_NONE;
-  hlpuart1.Init.Mode = UART_MODE_TX;
+  hlpuart1.Init.Mode = UART_MODE_TX_RX;
   hlpuart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
   hlpuart1.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
   hlpuart1.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
@@ -758,7 +806,7 @@ static void MX_LPUART1_UART_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN LPUART1_Init 2 */
-  //HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)USART_RxBuffer_calibration, RX_BUFFER_SIZE_calibration);
+  HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)USART_RxBuffer_calibration, RX_BUFFER_SIZE_calibration);
   /* USER CODE END LPUART1_Init 2 */
 
 }
@@ -822,11 +870,10 @@ static void MX_GPIO_Init(void)
 
 void HAL_LPTIM_AutoReloadMatchCallback(LPTIM_HandleTypeDef *hlptim)
 {
-    if (hlptim->Instance == LPTIM1)
+    if (hlptim->Instance == LPTIM1 && started)
     {
     	SystemClock_Config(); // Reset Clock after wake-up
-    	start_algo = 1;
-
+    	printf("m\r\n");
     }
 }
 /* USER CODE END 4 */
