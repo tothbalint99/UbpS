@@ -108,12 +108,8 @@ const float32_t coefficients[NUM_SECTIONS * NUM_COEFFS] = {
     1.00000000e+00, 2.00000000e+00, 1.00000000e+00, +1.86380049e+00, -8.87033000e-01
 };
 
-q15_t US_interpolated[NUM_REC][INTEREST_SIZE];
-q15_t US_filtered[NUM_REC][INTEREST_SIZE];
 q15_t interest[NUM_REC][INTEREST_SIZE];
-
 q15_t covariance[NUM_REC-1][INTEREST_SIZE] = {0};
-
 q15_t peaks[NUM_REC-1][MAX_PEAK_NUM] = {{-1,-1,-1,-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1,-1,-1,-1}};
 uint16_t max_arguments[NUM_REC-1][MAX_PEAK_NUM] = {{-1,-1,-1,-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1,-1,-1,-1}};
 uint16_t max_arguments_for_0[NUM_REC-1][MAX_PEAK_NUM] = {{-1,-1,-1,-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1,-1,-1,-1},{-1,-1,-1,-1,-1,-1,-1,-1}};
