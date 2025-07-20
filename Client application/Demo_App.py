@@ -165,7 +165,7 @@ class Demo(tk.Tk):
                 self.len_rec = self.US_data.shape[1]
             except Exception as e:
                 messagebox.showerror("Error", f"Failed to load CSV file.\n\nError details: {str(e)}")
-
+        
     def button_pressed(self):
         """Handle start/stop button press."""
         self.running_lock.acquire()
@@ -177,8 +177,6 @@ class Demo(tk.Tk):
             self.signal_lock.acquire()
             self.signal = np.array([])
             self.signal_lock.release()
-
-
 
             self.US_data = np.array([])
             self.ser.reset_input_buffer()
@@ -200,6 +198,7 @@ class Demo(tk.Tk):
             self.running_lock.acquire()
             self.running = True
             self.running_lock.release()
+            print("Started!")
             
             if not self.t1.is_alive():
                 self.t1.start()
@@ -221,15 +220,21 @@ class Demo(tk.Tk):
                     decoded_response = response.decode('utf-8')
                     if decoded_response[0] != 'm':
                         break
+                    self.ser.flush()
                     
                     self.running_lock.acquire()
-                    if self.stop_pressed == True:
+                    if self.stop_pressed == True or self.num_rec-1==self.idx_rec:
                         self.running_lock.release() 
                         # Sending stop message
                         message = "e"
                         message = message.ljust(256)
                         message_bytes = message.encode('utf-8')
                         self.ser.write(message_bytes)
+                        if self.stop_pressed == True:
+                            print("Stopped!")
+                        elif self.num_rec-1==self.idx_rec:
+                            self.start.config(text="Start measurement", background='#39FF14')
+                            print("Ended!")
 
                         self.running_lock.acquire()
                         self.stop_pressed = False

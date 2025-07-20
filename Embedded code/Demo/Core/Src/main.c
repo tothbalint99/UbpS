@@ -143,7 +143,6 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_LPUART1_UART_Init(void);
 static void MX_LPTIM1_Init(void);
-void MX_USB_HOST_Process(void);
 
 /* USER CODE BEGIN PFP */
 
@@ -207,14 +206,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
             rec_index++;
 
-            // Handling the end of the recording
-            if (rec_index >= RECORDING_LENGTH)
-            {
-                started = 0;
-                HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)USART_RxBuffer_calibration, RX_BUFFER_SIZE_calibration);
-            }
-            else
-                HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)USART_RxBuffer_signal, RX_BUFFER_SIZE_signal);
+            HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)USART_RxBuffer_signal, RX_BUFFER_SIZE_signal);
         }
     }
 }
@@ -579,7 +571,6 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_LPUART1_UART_Init();
-  MX_USB_HOST_Init();
   MX_LPTIM1_Init();
   /* USER CODE BEGIN 2 */
   HAL_SuspendTick();
@@ -590,7 +581,6 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-    MX_USB_HOST_Process();
 
     /* USER CODE BEGIN 3 */
 
@@ -666,7 +656,6 @@ int main(void)
 		{
 			printf("%d\r\n", 0); // Print zero if conditions are not met
 		}
-
 
 		// Reset start_algo flag
 		start_algo = 0;
@@ -874,6 +863,7 @@ void HAL_LPTIM_AutoReloadMatchCallback(LPTIM_HandleTypeDef *hlptim)
     {
     	SystemClock_Config(); // Reset Clock after wake-up
     	printf("m\r\n");
+
     }
 }
 /* USER CODE END 4 */
