@@ -14,7 +14,7 @@ The project repository is structured as follows:
 This folder contains the graphical client application and the corresponding test data.
 
 ### Code
-This folder contains all the desktop implementations of the algorithm tailored for the phantom, the in-vivo algorithm without optimization using a 2 GHz sampling frequency, and the in-vivo algorithm that uses a 2 MHz sampling frequency for the A-mode ultrasound scans.
+This folder contains all the desktop implementations of the algorithm, tailored for the phantom using a 5 MHz sampling frequency and for the in-vivo setup using a 2 MHz sampling frequency for A-mode ultrasound scans.
 
 ### Data
 The ultrasound recordings related to this project can be found in this folder.
